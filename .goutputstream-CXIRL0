@@ -1,0 +1,88 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Light Level Monitoring - Database</title>
+		<script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+		<script src="static/libs/plotly-latest.min.js"></script>
+	</head>
+	<body>
+		<script type="text/javascript" charset="utf-8">
+			GetData();
+			
+			namespace = '/test';
+			var x = new Array();
+			var y = new Array();
+			var trace;
+			var layout;
+			
+			
+			function WriteData(count, data)
+			{
+				// zapis do listu
+				$('#log').append('Received #' + count + ': ' + data + '<br>').html();
+				
+				// zapist do grafu
+				x.push(parseFloat(count));
+				y.push(parseFloat(data));
+				trace = {
+					x: x,
+					y: y,
+				};       
+				layout = {
+				title: 'Graph of received data',
+				xaxis: {
+					title: 'Time',
+				},
+				yaxis: {
+					title: 'Light Level',
+				}
+				};
+				var traces = new Array();
+				traces.push(trace);
+				Plotly.newPlot($('#plotdiv')[0], traces, layout);
+			}
+			
+			
+			function GetData()
+			{
+				var request = new XMLHttpRequest(); //inicializacia premennej typu request
+				request.open("GET", "https://lightlevelmonitoring.000webhostapp.com/database_getData.php");
+				
+				
+				request.onreadystatechange = function() {
+					if (request.readyState === 4) {
+						json = JSON.parse(request.response);
+						console.log(json); 
+						var res = []; 
+						
+						for(var i in json) 
+							res.push(json[i]); 
+						
+						for (i = 0; i < json.length; i++)
+						{
+							WriteData(res[i].count, res[i].data);
+						}
+					}
+				}
+				
+				request.send();
+			}
+		</script>
+	
+		<h2>Light Level Monitoring - Database</h2>
+			
+			<div id="ContentBlock">
+				<div id="ListData">
+					<h3>List of received data:</h3>
+					<div id="log"></div>
+				</div>
+				
+				<div id="GraphData">
+					<div id="plotdiv" style="width: 600px; height: 250px;"></div>
+				</div>
+			</div>
+		</div>
+	
+	</body>
+</html>

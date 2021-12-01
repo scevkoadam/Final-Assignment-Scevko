@@ -1,0 +1,300 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Light Level Monitoring - micro:bit</title>
+		<script type="text/javascript" src="//code.jquery.com/jquery-1.4.2.min.js"></script>
+		<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.5/socket.io.min.js"></script>
+		<script src="static/libs/gauge.min.js"></script>
+		<script src="static/libs/plotly-latest.min.js"></script>
+<style>
+#receive_block
+{
+	display: none;
+}
+#rate_block
+{
+	display: none;
+}
+#ListData, #GraphData, #GaugeData
+{
+	display: none;
+}
+</style>
+	</head>
+	<body>
+		<script type="text/javascript" charset="utf-8">
+			var socket;
+			var itStarted = false;
+			var sampleRate = 1;
+			namespace = '/test';
+			
+			var x = new Array();
+			var y = new Array();
+			var trace;
+			var layout;
+		
+			function Open()
+			{
+				
+				socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
+				var rate_block = document.getElementById('rate_block');
+				
+				if (rate_block != null)
+				{
+					rate_block.style.display = "block";
+				}
+				
+				var open_button = document.getElementById('open_btn');
+				
+				if (open_button != null)
+				{
+					open_button.style.display = "none";
+				}
+			}
+		
+			function Open2()
+			{
+				var receive_block = document.getElementById('receive_block');
+				
+				if (receive_block != null)
+				{
+					receive_block.style.display = "block";
+				}
+				
+				var rate_block = document.getElementById('rate_block');
+				
+				if (rate_block != null)
+				{
+					rate_block.style.display = "none";
+				}
+				
+				sampleRate = document.getElementById("rateSlider").value;
+			}
+			
+			function Close()
+			{
+				console.log("test open");
+				
+				HideAll();
+				socket.emit('disconnect_request');
+				
+				var receive_block = document.getElementById('receive_block');
+				
+				if (receive_block != null)
+				{
+					receive_block.style.display = "none";
+				}
+				
+				var open_button = document.getElementById('open_btn');
+				
+				if (open_button != null)
+				{
+					open_button.style.display = "block";
+				}
+			}
+			
+			function Start()
+			{
+				var time = 0;
+				var por_cislo = 1;
+				
+				socket.on('connect', function() {
+						socket.emit('my_event'); });
+
+				itStarted = true;
+				
+				var gauge = new RadialGauge({
+					renderTo: 'canvasID',
+					width: 300,
+					height: 300,
+					units: "Light Level",
+					minValue: 1,
+					maxValue: 5,
+					majorTicks: [
+						"1",
+						"2",
+						"3",
+						"4",
+						"5"
+						],
+					minorTicks: 2,
+					strokeTicks: true,
+					highlights: [
+						{
+							"from": 4,
+							"to": 5,
+							"color": "rgba(200, 50, 50, .75)"
+						}
+					],
+					colorPlate: "#fff",
+					borderShadowWidth: 0,
+					borders: false,
+					needleType: "arrow",
+					needleWidth: 2,
+					needleCircleSize: 7,
+					needleCircleOuter: true,
+					needleCircleInner: false,
+					animationDuration: 1500,
+					animationRule: "linear"
+				});
+				gauge.draw();
+						
+				socket.on('my_response', function(msg) {
+						if (itStarted)
+						{
+							if (time % sampleRate == 0)
+							{
+								$('#log').append('Received #'+(por_cislo)+': '+msg.data+'<br>').html();
+								x.push(parseFloat(msg.count));
+								y.push(parseFloat(msg.data));
+								trace = {
+									x: x,
+									y: y,
+								};       
+								layout = {
+								title: 'DataGraph',
+								xaxis: {
+									title: 'Time',
+								},
+								yaxis: {
+									title: 'Light Level',
+								}
+								};
+								var traces = new Array();
+								traces.push(trace);
+								Plotly.newPlot($('#plotdiv')[0], traces, layout);
+								
+								gauge.value = msg.data;                
+							}
+							time += 1;
+							por_cislo += 1;
+						}
+					});
+			}
+			
+			function Stop()
+			{
+				itStarted = false;
+				
+				if (socket == null)
+				{
+					return;
+				}
+				
+				console.log("test disconnect");
+				HideAll();
+			}
+			
+			function UpdateRate()
+			{
+				var rateText = document.getElementById("rate_text");
+				var rateSlider = document.getElementById("rateSlider");
+				if (rateText != null && rateSlider != null)
+				{
+					rateText.innerText = rateSlider.value;
+				}
+			}
+			
+			function ShowList()
+			{
+				HideAll();
+				document.getElementById("ListData").style.display = "block";
+			}
+			
+			function ShowGraph()
+			{
+				HideAll();
+				document.getElementById("GraphData").style.display = "block";
+			}
+			
+			function ShowGauge()
+			{
+				HideAll();
+				document.getElementById("GaugeData").style.display = "block";
+			}
+			
+			function HideAll()
+			{
+				document.getElementById("ListData").style.display = "none";
+				document.getElementById("GraphData").style.display = "none";
+				document.getElementById("GaugeData").style.display = "none";
+			}
+		</script>
+	
+		<h1>Light Level Monitoring - micro:bit</h1>
+		
+		<button id="open_btn" onclick="Open()">Open</button>
+		
+		<div id="rate_block">
+			<table>
+				<tr>
+					<td>
+						<input type="range" id="rateSlider" step="1" min="1" max="5" value="1" onchange="UpdateRate()" />
+					</td>
+					<td>
+						<div id="rate_text">1</div>
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<button id="open2_btn" onclick="Open2()">Apply</button>
+					</td>
+				</tr>
+			</table>
+		</div>
+	
+		<div id="receive_block">
+			
+			<table>
+				<br>
+				<tr>
+					<td>
+						<button id="start_btn" onclick="Start()">Start</button>
+					</td>
+					<td>
+						<button id="stop_btn" onclick="Stop()">Stop</button>
+					</td>
+				</tr>
+			</table>
+			
+			
+			<table>
+				<br>
+				<tr>
+					<td>
+						<button id="list_btn" onclick="ShowList()">List</button>
+					</td>
+					<td>
+						<button id="graph_btn" onclick="ShowGraph()">Graph</button>
+					</td>
+					<td>
+						<button id="gauge_btn" onclick="ShowGauge()">Gauge</button>
+					</td>
+					<td>
+						
+					</td>
+					<td>
+						<button id="close_btn" onclick="Close()">Close</button>
+					</td>
+				</tr>
+			</table>
+			
+			<div id="ContentBlock">
+				<div id="ListData">
+					<h2>List of received data:</h2>
+					<div id="log"></div>
+				</div>
+				
+				<div id="GraphData">
+				<h2>Graph of received data:</h2>
+				<div id="plotdiv" style="width:600px;height:250px;"></div>
+				</div>
+				
+				<div id="GaugeData">
+					<canvas id="canvasID"></canvas>
+				</div>
+			</div>
+		</div>
+	
+	</body>
+</html>
